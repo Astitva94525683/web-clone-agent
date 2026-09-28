@@ -1,0 +1,7 @@
+playwright>=1.49
+openai>=1.40
+streamlit>=1.50
+pillow>=10.0
+numpy>=1.26
+python-dotenv>=1.0
+pytest>=8.0
