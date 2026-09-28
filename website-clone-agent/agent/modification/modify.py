@@ -214,7 +214,7 @@ def apply_operations(llm: LLM, project: Project, ops: list[dict], rep: Reporter)
                      "slug": slug, "source": "added"}
             idx = len(secs) - (1 if secs and secs[-1].get("kind") == "footer" else 0)
             if after == "START":
-                idx = 1 if secs and secs[0].get("kind") == "header" else 0
+                idx = next((i + 1 for i, s in enumerate(secs[:2]) if s.get("kind") == "header"), 0)
             elif after in names:
                 idx = next(i for i, s in enumerate(secs) if s["name"] == after) + 1
             secs.insert(idx, entry)
@@ -236,7 +236,10 @@ def apply_operations(llm: LLM, project: Project, ops: list[dict], rep: Reporter)
             if name in names:
                 item = next(s for s in secs if s["name"] == name)
                 secs.remove(item)
-                idx = 0 if after == "START" else next((i + 1 for i, s in enumerate(secs) if s["name"] == after), len(secs))
+                if after == "START":
+                    idx = next((i + 1 for i, s in enumerate(secs[:2]) if s.get("kind") == "header"), 0)
+                else:
+                    idx = next((i + 1 for i, s in enumerate(secs) if s["name"] == after), len(secs))
                 secs.insert(idx, item)
                 notes.append(f"moved {name}")
     manifest["sections"] = secs

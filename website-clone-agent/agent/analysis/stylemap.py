@@ -26,6 +26,11 @@ INHERITED = ["color", "font-family", "font-size", "font-weight", "font-style", "
              "letter-spacing", "text-transform", "text-align", "white-space"]
 WEIGHTS = {100: "thin", 200: "extralight", 300: "light", 400: "normal", 500: "medium",
            600: "semibold", 700: "bold", 800: "extrabold", 900: "black"}
+JUSTIFY_SELF = {"start": "justify-self-start", "flex-start": "justify-self-start", "left": "justify-self-start",
+                "self-start": "justify-self-start", "center": "justify-self-center", "end": "justify-self-end",
+                "flex-end": "justify-self-end", "right": "justify-self-end", "self-end": "justify-self-end"}
+# Parents whose block children fill the content width unless given an explicit width.
+BLOCK_FLOW = {"block", "flow-root", "list-item", "inline-block", "table-cell"}
 BP = "lg"  # desktop breakpoint prefix (>=1024px). Base classes = mobile.
 
 
@@ -98,6 +103,17 @@ def to_hex(c: Optional[str]) -> Optional[str]:
     if a < 0.995:
         h += f"{round(a * 255):02x}"
     return h
+
+
+def radius_px(value: Optional[str], w: float, h: float) -> float:
+    """Computed border-radius -> px. Handles percentages ("50%") and elliptical pairs ("8px 4px")."""
+    first = (value or "").strip().split(" ")[0]
+    if first.endswith("%"):
+        try:
+            return float(first[:-1]) / 100 * min(w, h) if w and h else 0.0
+        except ValueError:
+            return 0.0
+    return px(first) or 0.0
 
 
 def hex_close(a: str, b: str, tol: int = 3) -> bool:
@@ -275,6 +291,9 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
             place = _grid_place(s.get(f"grid-{axis}-start", "auto"), s.get(f"grid-{axis}-end", "auto"), prefix)
             if place:
                 out[f"{prefix}-span"] = place
+        jself = JUSTIFY_SELF.get(s.get("justify-self") or "auto")
+        if jself:
+            out["justify-self"] = jself
     if pdisp in ("flex", "inline-flex"):
         grow, shrink = s.get("flex-grow"), s.get("flex-shrink")
         if grow == "1" and s.get("flex-basis") in ("0%", "0px"):
@@ -326,20 +345,33 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
     p_cls = _box("p", *pads)
     if p_cls:
         out["padding"] = " ".join(p_cls)
+    # Tailwind's preflight makes every element border-box. The original may be content-box
+    # (the CSS default), where max-width/min-height exclude padding and borders.
+    borders = [px(s.get(f"border-{k}-width")) or 0 for k in ("top", "right", "bottom", "left")]
+    content_box = s.get("box-sizing") == "content-box"
+    extra_x = pads[1] + pads[3] + borders[1] + borders[3] if content_box else 0
+    extra_y = pads[0] + pads[2] + borders[0] + borders[2] if content_box else 0
     margins = [px(s.get(f"margin-{k}")) or 0 for k in ("top", "right", "bottom", "left")]
     mt, mr, mb, ml = margins
     parent_rect = None
     if node.parent is not None:
         prec = node.parent.d if vp == "d" else node.parent.m
         parent_rect = prec["rect"] if prec else None
+    in_flex_row = pdisp in ("flex", "inline-flex") and ps.get("flex-direction", "row").startswith("row")
     centered = False
     auto_side = ""
-    if ml > 0 and abs(ml - mr) <= 1 and parent_rect and disp not in ("inline", "inline-block", "inline-flex"):
+    # Equal side margins are auto-centering in block flow; in a flex row / grid they are literal
+    # spacing (``mx-auto`` there would swallow all free space).
+    if ml > 0 and abs(ml - mr) <= 1 and parent_rect and disp not in ("inline", "inline-block", "inline-flex") \
+            and not in_flex_row and pdisp not in ("grid", "inline-grid"):
         centered = True
         ml = mr = 0
-    elif ps.get("display", "") in ("flex", "inline-flex") and ps.get("flex-direction", "row").startswith("row"):
+    elif in_flex_row:
         # margin-left:auto in a flex row resolves to a big px value -> restore "ml-auto"
-        if ml > 32 and mr < 32:
+        if ml > 32 and abs(ml - mr) <= 1 and len(node.parent.elements) == 1:
+            centered = True  # lone item centred with margin: 0 auto
+            ml = mr = 0
+        elif ml > 32 and mr < 32:
             auto_side, ml = "ml-auto", 0
         elif mr > 32 and ml < 32:
             auto_side, mr = "mr-auto", 0
@@ -355,9 +387,17 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
     maxw = px(s.get("max-width"))
     if maxw and maxw < 3000:
         cont = tokens.container
-        out["max-w"] = "max-w-site" if cont and abs(maxw - cont) < 1 else f"max-w-[{num(maxw)}px]"
+        if extra_x:
+            maxw += extra_x
+            out["max-w"] = f"max-w-[{num(maxw)}px]"
+        else:
+            out["max-w"] = "max-w-site" if cont and abs(maxw - cont) < 1 else f"max-w-[{num(maxw)}px]"
         if centered or (parent_rect and w >= maxw - 1):
             out["w"] = "w-full"
+    elif centered and tag not in REPLACED and w > 0:
+        # centred with auto margins but no max-width: the original had a fixed width
+        out["max-w"] = f"max-w-[{num(w)}px]"
+        out["w"] = "w-full"
     elif tag in REPLACED or (not node.kids and (s.get("background-color") not in (None, "", "rgba(0, 0, 0, 0)")
                                               or s.get("border-top-style") not in (None, "none")
                                               or s.get("background-image", "none") != "none"
@@ -366,13 +406,18 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
         pp = px((ps or {}).get("padding-left")) or 0
         pr = px((ps or {}).get("padding-right")) or 0
         vw = 1440 if vp == "d" else 390
-        if pw and abs(w - (pw - pp - pr)) <= 2 and w >= 0.5 * vw:
+        inset = out.get("inset", "")
+        if "inset-x-0" in inset:
+            pass  # stretched between left:0 and right:0 (overlays): no fixed width
+        elif pw and abs(w - (pw - pp - pr)) <= 2 and w >= 0.5 * vw:
             out["w"] = "w-full"  # genuinely fluid (hero images, full-width blocks)
         elif w:
             # fixed size (logos, icons); max-w-full keeps it from overflowing small screens
             out["w"] = f"w-[{num(w)}px]" + (" max-w-full" if tag in ("img", "video", "iframe", "canvas") else "")
         nw, nh = a.get("nw"), a.get("nh")
-        if tag == "img" and nw and nh and w and abs(h - w * nh / nw) <= 2:
+        if "inset-y-0" in inset:
+            pass
+        elif tag == "img" and nw and nh and w and abs(h - w * nh / nw) <= 2:
             out["h"] = "h-auto"
         elif h:
             out["h"] = f"h-[{num(h)}px]"
@@ -390,10 +435,31 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
         inner_w = parent_rect[2] - (px(ps.get("padding-left")) or 0) - (px(ps.get("padding-right")) or 0)
         if inner_w > 0 and w / inner_w >= 0.97 and w >= 100:
             out["w"] = "w-full"  # inline-level boxes shrink-to-fit otherwise
+    elif pdisp in BLOCK_FLOW and parent_rect and disp in ("block", "flex", "grid", "table", "flow-root", "list-item") \
+            and tag not in REPLACED and pos not in ("absolute", "fixed") and node.id.isdigit():
+        # In block flow a block fills its container unless it had an explicit width
+        # (icon boxes, fixed-width columns); tables shrink-to-fit unless told to fill.
+        pl, pr = px(ps.get("padding-left")) or 0, px(ps.get("padding-right")) or 0
+        bl, br = px(ps.get("border-left-width")) or 0, px(ps.get("border-right-width")) or 0
+        inner_w = parent_rect[2] - pl - pr - bl - br
+        avail = inner_w - margins[1] - margins[3]
+        if inner_w > 0 and w > 0:
+            if disp == "table":
+                if w >= 0.97 * avail:
+                    out["w"] = "w-full"
+            elif w < avail - 2:
+                if w < 400 or node.own_text():
+                    # +1px: the captured rect is rounded, text must not wrap
+                    out["w"] = f"w-[{num(w + (1 if node.text(1) else 0))}px] max-w-full"
+                else:
+                    out["w"] = f"w-[{num(round(100 * w / inner_w, 1))}%]"
     minh = px(s.get("min-height"))
     if minh and minh > 0:
         vh = 900 if vp == "d" else 844
-        out["min-h"] = "min-h-screen" if abs(minh - vh) <= 2 else f"min-h-[{num(minh)}px]"
+        if abs(minh - vh) <= 2:
+            out["min-h"] = f"min-h-[calc(100vh_+_{num(extra_y)}px)]" if extra_y else "min-h-screen"
+        else:
+            out["min-h"] = f"min-h-[{num(minh + extra_y)}px]"
     elif "h" not in out and tag not in REPLACED and disp not in ("inline", "contents") and h >= 24 \
             and not node.own_text():
         # Taller than its in-flow children -> the original had an explicit height (navbars, heroes).
@@ -442,10 +508,11 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
     if tt != "none" and changed("text-transform"):
         out["transform"] = {"uppercase": "uppercase", "lowercase": "lowercase", "capitalize": "capitalize"}.get(tt, "")
     ta = s.get("text-align", "start")
-    if changed("text-align") and ta in ("center", "right", "justify", "left", "start", "end"):
+    if (changed("text-align") or tag == "th") and ta in ("center", "right", "justify", "left", "start", "end"):
         out["text-align"] = {"center": "text-center", "right": "text-right", "end": "text-right",
                              "justify": "text-justify"}.get(ta, "text-left")
-        if out["text-align"] == "text-left" and parent_style is not None and \
+        # <th> is centred by the browser's default stylesheet, so its "left" must stay explicit
+        if out["text-align"] == "text-left" and parent_style is not None and tag != "th" and \
                 ps.get("text-align") in (None, "start", "left"):
             out.pop("text-align")
     if s.get("font-style") == "italic" and changed("font-style"):
@@ -493,7 +560,8 @@ def style_classes(node, vp: str, tokens: TokenMap, parent_style: Optional[dict])
             out["border"] += " " + tokens.color("border", bcol)
         if bst[side_idx] in ("dashed", "dotted"):
             out["border"] += f" border-{bst[side_idx]}"
-    radii = [px(s.get(f"border-{k}-radius")) or 0 for k in ("top-left", "top-right", "bottom-right", "bottom-left")]
+    radii = [radius_px(s.get(f"border-{k}-radius"), w, h)
+             for k in ("top-left", "top-right", "bottom-right", "bottom-left")]
     if any(radii):
         if len(set(radii)) == 1:
             r0 = radii[0]
@@ -542,7 +610,33 @@ RESET = {
     "flex-wrap": "flex-nowrap", "whitespace": "whitespace-normal", "transform": "normal-case",
     "shrink": "shrink", "self": "self-auto", "rounded": "rounded-none", "border": "border-0",
     "shadow": "shadow-none", "overflow": "overflow-visible", "bg-image": "bg-none",
+    "justify-self": "justify-self-auto",
 }
+# Groups written per side: a desktop value must also reset the sides only the mobile value set
+# ("mx-2" + "lg:ml-6" would otherwise keep an 8px right margin on desktop).
+SIDE_GROUPS = {
+    "margin": (re.compile(r"^-?m([xytrbl]?)-"), "m{}-0"),
+    "padding": (re.compile(r"^p([xytrbl]?)-"), "p{}-0"),
+    "inset": (re.compile(r"^-?(inset-x|inset-y|inset|top|right|bottom|left)-"), "{}-auto"),
+}
+_SIDE_OF = {"": "trbl", "x": "rl", "y": "tb", "t": "t", "r": "r", "b": "b", "l": "l", "inset": "trbl",
+            "inset-x": "rl", "inset-y": "tb", "top": "t", "right": "r", "bottom": "b", "left": "l"}
+_INSET_NAME = {"t": "top", "r": "right", "b": "bottom", "l": "left"}
+
+
+def _sides(classes: str, pattern: re.Pattern) -> set:
+    out: set = set()
+    for c in classes.split():
+        m = pattern.match(c)
+        if m:
+            out |= set(_SIDE_OF[m.group(1)])
+    return out
+
+
+def _side_resets(key: str, mobile: str, desktop: str) -> list[str]:
+    pattern, fmt = SIDE_GROUPS[key]
+    missing = _sides(mobile, pattern) - _sides(desktop, pattern)
+    return [fmt.format(_INSET_NAME[sd] if key == "inset" else sd) for sd in "trbl" if sd in missing]
 
 
 def classes_for(node, tokens: TokenMap, parent_styles: Optional[tuple] = None) -> str:
@@ -579,6 +673,8 @@ def classes_for(node, tokens: TokenMap, parent_styles: Optional[tuple] = None) -
             continue
         if dv:
             out.extend(f"{BP}:{c}" for c in dv.split())
+            if mv and key in SIDE_GROUPS:
+                out.extend(f"{BP}:{c}" for c in _side_resets(key, mv, dv))
         elif key in RESET:
             out.append(f"{BP}:{RESET[key]}")
     return " ".join(c for c in out if c)

@@ -135,6 +135,8 @@ class OutlineBuilder:
         for k in ("aria-label", "placeholder", "type", "title"):
             if a.get(k) and (k != "type" or tag in ("input", "button")):
                 attrs[k] = a[k]
+        if tag == "details" and a.get("open"):
+            attrs["open"] = True
         if tag in ("input", "textarea") and a.get("value") and not a.get("placeholder"):
             attrs["placeholder"] = a["value"]
         if tag in ("td", "th"):
@@ -214,6 +216,7 @@ def _attr_str(v: VNode) -> str:
         parts.append(f'class="{v.cls}"')
     for k, val in v.attrs.items():
         if val is True:
+            parts.append(k)  # boolean attribute (open, muted, ...)
             continue
         parts.append(f'{k}="{str(val)[:300]}"')
     return (" " + " ".join(parts)) if parts else ""

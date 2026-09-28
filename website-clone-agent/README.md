@@ -137,6 +137,7 @@ For multiple real websites, `python cli.py eval <url1> <url2> <url3>` prints a t
 - Only the given page is recreated. Links to other pages of the site become `#`; external links are kept.
 - Rich interactions (carousels, tabs, dropdown menus, scroll animations) are recreated as their static state. Only simple interactivity (for example the mobile menu) is implemented.
 - `<canvas>`/WebGL becomes a screenshot, videos keep their remote source, and only YouTube/Vimeo/Maps iframes are embedded.
+- CSS `::before`/`::after` content is recreated only when it is an absolutely positioned box with a background (overlays, decorative shapes). Text or icon-font pseudo-content is not captured.
 - Sites behind logins or bot protection can't be captured. Very heavy SPAs may render partially.
 - Images and fonts are downloaded for the local preview only. They belong to the original site owners.
 - Very large sections are truncated in the prompt (`MAX_SECTION_CHARS`), so their tail may be simplified.

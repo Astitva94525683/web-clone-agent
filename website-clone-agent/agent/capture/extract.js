@@ -16,7 +16,7 @@
     "display", "position", "top", "right", "bottom", "left", "z-index",
     "flex-direction", "flex-wrap", "justify-content", "align-items", "align-self",
     "flex-grow", "flex-shrink", "flex-basis", "order",
-    "row-gap", "column-gap", "grid-template-columns", "grid-column-start", "grid-column-end",
+    "row-gap", "column-gap", "grid-template-columns", "grid-column-start", "grid-column-end", "justify-self",
     "grid-row-start", "grid-row-end",
     "padding-top", "padding-right", "padding-bottom", "padding-left",
     "margin-top", "margin-right", "margin-bottom", "margin-left",
@@ -114,6 +114,42 @@
     } catch (e) { return null; }
   }
 
+  function readStyles(cs) {
+    const s = {};
+    for (const p of PROPS) {
+      let v = cs.getPropertyValue(p);
+      if (COLOR_PROPS.has(p)) v = normColor(v);
+      s[p] = v;
+    }
+    return s;
+  }
+
+  // Absolutely positioned ::before/::after boxes with a background (image overlays,
+  // decorative shapes) are real visuals but not DOM elements: record them as child nodes.
+  function pseudoNode(el, which, id, r, cs, scrollX, scrollY) {
+    if (cs.position === "static") return null; // containing block would be some other ancestor
+    const ps = getComputedStyle(el, which);
+    if (!ps.content || ps.content === "none" || ps.content === "normal") return null;
+    if (ps.display === "none" || ps.visibility === "hidden" || parseFloat(ps.opacity) === 0) return null;
+    if (ps.position !== "absolute") return null;
+    const bg = normColor(ps.backgroundColor) || "";
+    const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(bg);
+    const hasBg = (ps.backgroundImage && ps.backgroundImage !== "none") || (bg && !(alpha && parseFloat(alpha[1]) === 0));
+    if (!hasBg) return null;
+    const w = parseFloat(ps.width), h = parseFloat(ps.height);
+    if (!(w >= 4 && h >= 4)) return null;
+    const bl = parseFloat(cs.borderLeftWidth) || 0, bt = parseFloat(cs.borderTopWidth) || 0;
+    const br = parseFloat(cs.borderRightWidth) || 0, bb = parseFloat(cs.borderBottomWidth) || 0;
+    let left = parseFloat(ps.left), top = parseFloat(ps.top);
+    if (isNaN(left)) left = r.width - bl - br - (parseFloat(ps.right) || 0) - w;
+    if (isNaN(top)) top = r.height - bt - bb - (parseFloat(ps.bottom) || 0) - h;
+    return {
+      id: id + which, tag: "div", parent: id,
+      rect: [Math.round(r.left + scrollX + bl + left), Math.round(r.top + scrollY + bt + top), Math.round(w), Math.round(h)],
+      s: readStyles(ps), a: {}, kids: [],
+    };
+  }
+
   function extract(vpName) {
     const nodes = {};
     const scrollY = window.scrollY, scrollX = window.scrollX;
@@ -121,30 +157,25 @@
     const vw = window.innerWidth;
     const all = [document.body, ...document.body.querySelectorAll("[data-ca]")];
 
-    for (const el of all) {
+    function visit(el) {
       const id = el.getAttribute("data-ca");
-      if (id === null) continue;
+      if (id === null) return;
       const cs = getComputedStyle(el);
-      if (cs.display === "none" || cs.visibility === "hidden" || cs.visibility === "collapse") continue;
+      if (cs.display === "none" || cs.visibility === "hidden" || cs.visibility === "collapse") return;
       // opacity:0 + pointer-events:none = intentionally hidden (menus, tooltips).
       // opacity:0 alone is usually an unfinished entrance animation -> keep.
-      if (parseFloat(cs.opacity) === 0 && cs.pointerEvents === "none") continue;
-      if (isCookieBanner(el, cs)) continue;
+      if (parseFloat(cs.opacity) === 0 && cs.pointerEvents === "none") return;
+      if (isCookieBanner(el, cs)) return;
       const r = el.getBoundingClientRect();
       const contents = cs.display === "contents";
-      if (!contents && r.width < 1 && r.height < 1 && el !== document.body) continue;
-      if (!contents && (r.right + scrollX <= 0 || r.left + scrollX >= pageW)) continue; // off-canvas
+      if (!contents && r.width < 1 && r.height < 1 && el !== document.body) return;
+      if (!contents && (r.right + scrollX <= 0 || r.left + scrollX >= pageW)) return; // off-canvas
       // Parent must be visible too (visibility is inherited, but display:none is not).
       const parentEl = el.parentElement;
       const parentId = el === document.body ? null : (parentEl && parentEl.getAttribute("data-ca"));
-      if (el !== document.body && (parentId === null || !(parentId in nodes))) continue;
+      if (el !== document.body && (parentId === null || !(parentId in nodes))) return;
 
-      const s = {};
-      for (const p of PROPS) {
-        let v = cs.getPropertyValue(p);
-        if (COLOR_PROPS.has(p)) v = normColor(v);
-        s[p] = v;
-      }
+      const s = readStyles(cs);
       if (parseFloat(cs.opacity) === 0) s["opacity"] = "1";
 
       const tagName = el.tagName.toLowerCase();
@@ -179,8 +210,12 @@
         a.svg = serializeSvg(el, normColor(cs.color));
       }
       if (tagName === "canvas") a.canvas = true;
+      if (tagName === "details" && el.open) a.open = true;
       // ordered children (elements by id + text nodes)
       if (tagName !== "svg") {
+        const before = pseudoNode(el, "::before", id, r, cs, scrollX, scrollY);
+        const after = pseudoNode(el, "::after", id, r, cs, scrollX, scrollY);
+        if (before) node.kids.push(before.id);
         for (const ch of el.childNodes) {
           if (ch.nodeType === 3) {
             const t = ch.textContent.replace(/\s+/g, " ");
@@ -191,8 +226,26 @@
             if (cid !== null) node.kids.push(cid);
           }
         }
+        if (after) node.kids.push(after.id);
+        for (const pn of [before, after]) if (pn) nodes[pn.id] = pn;
       }
       nodes[id] = node;
+    }
+
+    for (const el of all) visit(el);
+    // Content of closed <details> (FAQ answers) is not rendered, but it is real content:
+    // open each one briefly to record it (the clone keeps it collapsed, like the original).
+    for (const det of document.body.querySelectorAll("details:not([open])")) {
+      const did = det.getAttribute("data-ca");
+      if (did === null || !(did in nodes)) continue;
+      det.open = true;
+      try {
+        for (const el of det.querySelectorAll("[data-ca]")) {
+          if (!(el.getAttribute("data-ca") in nodes)) visit(el);
+        }
+      } finally {
+        det.open = false;
+      }
     }
 
     // Drop kid references to elements that were not visible in this viewport.

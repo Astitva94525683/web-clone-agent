@@ -79,15 +79,24 @@ class Node:
         return d
 
 
+def _order(kid_id: str) -> float:
+    """Document-order key of a kid id. Pseudo-element ids ("12::before" / "12::after") sort
+    first / last among the children of element 12."""
+    num_, _, pseudo = kid_id.partition("::")
+    if not pseudo:
+        return float(num_)
+    return float(num_) + 0.5 if pseudo == "before" else float("inf")
+
+
 def _merge_kids(dk: list, mk: list, d_ids: set) -> list:
     """Merge two ordered kid lists (element ids are numbered in document order)."""
     base = list(dk)
     extra = [k for k in mk if isinstance(k, str) and k not in d_ids]
     for e in extra:
-        eid = int(e)
+        eid = _order(e)
         pos = len(base)
         for i, k in enumerate(base):
-            if not isinstance(k, dict) and int(k) > eid:
+            if not isinstance(k, dict) and _order(k) > eid:
                 pos = i
                 break
         base.insert(pos, e)
@@ -379,14 +388,21 @@ def find_sections(body: Node, viewport_w: int, max_sections: int = 18) -> list[S
 
     grouped = [_table_safe(n) for n in grouped]
 
+    # The header is normally the first block; a thin announcement strip above a real
+    # <header>/<nav> must not take its place.
+    header_idx = 0
+    if len(grouped) > 1 and grouped[0].rect[3] < 80 and grouped[0].tag not in ("header", "nav") \
+            and (grouped[1].tag in ("header", "nav") or grouped[1].attrs.get("role") == "banner"):
+        header_idx = 1
+
     sections: list[Section] = []
     for i, n in enumerate(grouped):
         hint = " ".join([n.tag, n.attrs.get("id", ""), n.attrs.get("cls", ""), n.attrs.get("role", "")])
         kind = "section"
         n_links = len([a for a in n.walk() if a.tag == "a"])
-        if i == 0 and (n.tag in ("header", "nav") or HEADER_HINT.search(hint) or n.attrs.get("role") == "banner"):
+        if i == header_idx and (n.tag in ("header", "nav") or HEADER_HINT.search(hint) or n.attrs.get("role") == "banner"):
             kind = "header"
-        elif i == 0 and n.rect[1] < 20 and n.rect[3] < 160 and n_links >= 3:
+        elif i == header_idx and n.rect[1] < 20 and n.rect[3] < 160 and n_links >= 3:
             kind = "header"
         elif n.tag == "footer" or (i == len(grouped) - 1 and (
                 FOOTER_HINT.search(hint) or n.attrs.get("role") == "contentinfo"
@@ -421,6 +437,8 @@ def heuristic_name(sec: Section, first_content: bool) -> str:
         return "Footer"
     n = sec.node
     has_h1 = any(k.tag == "h1" for k in n.walk())
+    if first_content and not has_h1 and n.rect[3] < 80:
+        return "TopBar"  # announcement / contact strip above the navbar
     if first_content or has_h1:
         return "Hero"
     heading = ""
@@ -442,7 +460,7 @@ def assign_names(sections: list[Section]) -> None:
     for s in sections:
         first = not first_content_done and s.kind == "section"
         name = heuristic_name(s, first)
-        if s.kind == "section":
+        if s.kind == "section" and name != "TopBar":
             first_content_done = True
         used[name] = used.get(name, 0) + 1
         s.name = name if used[name] == 1 else f"{name}{used[name]}"
