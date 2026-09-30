@@ -21,7 +21,11 @@ The output is new code built from reusable components. It is not an embed or a c
 
 ## Demo
 
-Demo video: *(link added on submission)*. Short answers to the technical discussion topics are in [docs/TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md).
+[![Demo video: click to watch](docs/demo-thumbnail.jpg)](docs/demo-video.mp4)
+
+**[▶ Watch the demo video](docs/demo-video.mp4)** (8.5 min, with subtitles). It walks through cloning Flipkart, Ajio and Google Workspace, the preview, analysis and code tabs, and natural-language edits (a dark theme and recolouring an Ajio tab).
+
+Short answers to the technical discussion topics are in [docs/TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md).
 
 ---
 
