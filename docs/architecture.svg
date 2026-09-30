@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+    <style>
+      .t { font-size: 17px; font-weight: 700; fill: #0f172a; }
+      .s { font-size: 12px; fill: #334155; }
+      .k { font-size: 11px; font-weight: 700; letter-spacing: .06em; fill: #64748b; }
+      .llm { font-size: 11px; font-weight: 700; fill: #7c3aed; }
+      .det { font-size: 11px; font-weight: 700; fill: #0f766e; }
+      .note { font-size: 12px; fill: #475569; }
+    </style>
+  </defs>
+  <rect width="1280" height="760" fill="#ffffff"/>
+  <text x="40" y="44" style="font-size:24px;font-weight:800;fill:#0f172a">AI Website Clone Agent - architecture</text>
+  <text x="40" y="68" class="note">URL → Analysis → Generation → Validation → Modification.  Green = deterministic (free) · Purple = LLM call (any OpenAI-compatible API · Gemini by default)</text>
+
+  <!-- URL -->
+  <rect x="40" y="120" width="110" height="64" rx="32" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="95" y="148" text-anchor="middle" class="t">URL</text>
+  <text x="95" y="167" text-anchor="middle" class="s">public site</text>
+  <line x1="150" y1="152" x2="178" y2="152" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 1 Capture -->
+  <rect x="182" y="96" width="250" height="250" rx="14" fill="#f0fdfa" stroke="#14b8a6" stroke-width="1.5"/>
+  <text x="200" y="122" class="k">1 · CAPTURE</text>
+  <text x="200" y="146" class="t">Analyze website</text>
+  <text x="200" y="170" class="det">DETERMINISTIC · PLAYWRIGHT</text>
+  <text x="200" y="194" class="s">• Headless Chromium at 1440px + 390px</text>
+  <text x="200" y="213" class="s">• Scroll, finish animations, hide cookie</text>
+  <text x="212" y="229" class="s">banners, detect bot walls</text>
+  <text x="200" y="248" class="s">• DOM + computed styles per element</text>
+  <text x="212" y="264" class="s">(same ids across both widths)</text>
+  <text x="200" y="283" class="s">• Full-page screenshots</text>
+  <text x="200" y="302" class="s">• Download images, SVGs, web fonts</text>
+  <text x="212" y="318" class="s">→ site/public (no hot-linking)</text>
+  <line x1="432" y1="220" x2="460" y2="220" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 2 Analyze -->
+  <rect x="464" y="96" width="250" height="250" rx="14" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="482" y="122" class="k">2 · ANALYZE</text>
+  <text x="482" y="146" class="t">Understand UI / layout</text>
+  <text x="482" y="170" class="det">DETERMINISTIC</text>
+  <text x="482" y="189" class="s">• Merge desktop + mobile → one tree</text>
+  <text x="482" y="208" class="s">• Segment into sections (nav…footer)</text>
+  <text x="482" y="227" class="s">• Design tokens: palette, fonts, radii,</text>
+  <text x="494" y="243" class="s">container width, type scale</text>
+  <text x="482" y="262" class="s">• Computed CSS → Tailwind outline</text>
+  <text x="494" y="278" class="s">(base = mobile, lg: = desktop)</text>
+  <text x="482" y="302" class="llm">LLM · 1 CHEAP JSON CALL</text>
+  <text x="482" y="321" class="s">• Section roles, names, layout intent,</text>
+  <text x="494" y="337" class="s">responsive + interactive notes</text>
+  <line x1="714" y1="220" x2="742" y2="220" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 3 Generate -->
+  <rect x="746" y="96" width="250" height="250" rx="14" fill="#f0fdfa" stroke="#14b8a6" stroke-width="1.5"/>
+  <text x="764" y="122" class="k">3 · GENERATE</text>
+  <text x="764" y="146" class="t">Next.js + TS + Tailwind</text>
+  <text x="764" y="170" class="det">DETERMINISTIC SCAFFOLD</text>
+  <text x="764" y="189" class="s">• package.json, configs, layout, fonts</text>
+  <text x="764" y="208" class="s">• globals.css @theme tokens</text>
+  <text x="764" y="227" class="s">• UI kit (Button, Container), page.tsx</text>
+  <text x="764" y="251" class="det">MEASURED COMPONENTS (NO LLM)</text>
+  <text x="764" y="270" class="s">• Every section rendered straight from</text>
+  <text x="776" y="286" class="s">the captured layout: fast baseline</text>
+  <text x="764" y="305" class="llm">OPTIONAL FULL MODE · LLM REWRITES</text>
+  <text x="764" y="321" class="s">• kept only if it scores as well</text>
+  <line x1="996" y1="220" x2="1024" y2="220" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 4 Validate -->
+  <rect x="1028" y="96" width="220" height="250" rx="14" fill="#fff7ed" stroke="#f97316" stroke-width="1.5"/>
+  <text x="1046" y="122" class="k">4 · VALIDATE &amp; REPAIR</text>
+  <text x="1046" y="146" class="t">Run &amp; validate</text>
+  <text x="1046" y="170" class="s">• tsc --noEmit → errors per file</text>
+  <text x="1046" y="189" class="llm">LLM repair of failing file only</text>
+  <text x="1046" y="206" class="s">  (max 3 tries) → else fallback</text>
+  <text x="1046" y="222" class="s">  renderer (always builds)</text>
+  <text x="1046" y="241" class="s">• next build (production)</text>
+  <text x="1046" y="260" class="s">• Runtime check in Chromium:</text>
+  <text x="1058" y="276" class="s">page/console errors, overflow</text>
+  <text x="1046" y="295" class="s">• Visual score: SSIM + colour +</text>
+  <text x="1058" y="311" class="s">height, per section</text>
+  <text x="1046" y="330" class="llm">LLM fixes weakest ≤3 · keep-best</text>
+
+  <!-- repair loop arrow -->
+  <path d="M1138 96 C1138 70, 871 70, 871 94" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrO)"/>
+  <text x="862" y="80" text-anchor="end" class="s" style="fill:#c2410c">repair / refine loop</text>
+
+  <!-- 5 Preview -->
+  <line x1="1138" y1="346" x2="1138" y2="392" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="1028" y="396" width="220" height="140" rx="14" fill="#f0fdfa" stroke="#14b8a6" stroke-width="1.5"/>
+  <text x="1046" y="422" class="k">5 · PREVIEW</text>
+  <text x="1046" y="446" class="t">Local preview</text>
+  <text x="1046" y="470" class="s">• next dev on a free local port</text>
+  <text x="1046" y="489" class="s">• Desktop / tablet / mobile frames</text>
+  <text x="1046" y="508" class="s">• Original vs generated + diff</text>
+  <line x1="1028" y1="466" x2="1000" y2="466" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 6 Modify -->
+  <rect x="464" y="396" width="532" height="190" rx="14" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="482" y="422" class="k">6 · MODIFY</text>
+  <text x="482" y="446" class="t">Natural-language edits</text>
+  <text x="482" y="470" class="llm">PLAN · CHEAP JSON CALL</text>
+  <text x="482" y="489" class="s">update_tokens · edit_section · add_section</text>
+  <text x="482" y="506" class="s">remove_section · move_section</text>
+  <text x="482" y="530" class="s">e.g. "primary colour → blue" = 1 CSS variable,</text>
+  <text x="482" y="547" class="s">zero code tokens</text>
+  <text x="742" y="470" class="llm">APPLY · ONLY AFFECTED FILES</text>
+  <text x="742" y="489" class="s">• Small SEARCH/REPLACE patches;</text>
+  <text x="754" y="506" class="s">new sections styled like neighbours</text>
+  <text x="742" y="525" class="s">• page.tsx rebuilt from manifest</text>
+  <text x="742" y="544" class="s">• tsc + repair → commit version</text>
+  <text x="742" y="563" class="s">• any failure → automatic rollback</text>
+  <path d="M996 440 C1016 440, 1016 360, 1060 348" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrO)"/>
+  <text x="1012" y="386" class="s" style="fill:#c2410c" text-anchor="end">validate</text>
+
+  <!-- cross-cutting -->
+  <rect x="40" y="396" width="392" height="190" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="58" y="422" class="k">CROSS-CUTTING</text>
+  <text x="58" y="446" class="t">LLM client &amp; runtime</text>
+  <text x="58" y="470" class="s">• OpenAI-compatible client (Gemini default)</text>
+  <text x="58" y="489" class="s">• Streaming · time limits · cache · retries</text>
+  <text x="58" y="508" class="s">• Tokens + USD per call (incl. provider cache hits)</text>
+  <text x="58" y="527" class="s">• Offline mode: every stage has a deterministic path</text>
+  <text x="58" y="546" class="s">• One shared node_modules for all generated sites</text>
+  <text x="58" y="565" class="s">• Version history per project: diff · undo</text>
+
+  <!-- output -->
+  <rect x="40" y="620" width="1208" height="104" rx="14" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="58" y="648" class="k">OUTPUT · workspace/projects/&lt;site&gt;/site  (plain standalone Next.js app)</text>
+  <text x="58" y="674" class="s">app/layout.tsx · app/page.tsx (composition) · app/globals.css (@theme tokens) · app/fonts.css · components/sections/*.tsx (one per section)</text>
+  <text x="58" y="694" class="s">components/ui/{Button,Container}.tsx · lib/cn.ts · public/assets, public/fonts           ·           data/: capture, blueprint, outlines, validation, scores, LLM calls, versions</text>
+</svg>

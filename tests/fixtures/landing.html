@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brewly - Coffee subscriptions</title>
+<meta name="description" content="Fresh roasted coffee delivered weekly.">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Georgia, serif; color: #1f2937; background: #fffaf3; line-height: 1.5; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  header { background: #fff; border-bottom: 1px solid #eadfce; }
+  header .container { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+  .logo { font-weight: 700; font-size: 22px; color: #7c3f12; text-decoration: none; }
+  nav.links { display: flex; gap: 28px; }
+  nav.links a { color: #4b5563; text-decoration: none; font-size: 15px; }
+  .btn { display: inline-block; background: #b45309; color: #fff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+  .btn.ghost { background: transparent; color: #b45309; border: 1px solid #b45309; }
+  .burger { display: none; width: 40px; height: 40px; border: 0; background: #f3e8d8; border-radius: 8px; }
+  .hero { padding: 96px 0; }
+  .hero .container { display: flex; gap: 48px; align-items: center; }
+  .hero h1 { font-size: 56px; line-height: 1.1; margin: 0 0 20px; color: #111827; }
+  .hero p { font-size: 20px; color: #6b7280; margin: 0 0 32px; }
+  .hero .text { flex: 1; } .hero .art { flex: 1; height: 360px; border-radius: 16px; background: linear-gradient(135deg, #f59e0b, #b45309); }
+  .features { padding: 80px 0; background: #fff; }
+  .features h2, .pricing h2, .testimonials h2 { text-align: center; font-size: 36px; margin: 0 0 48px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .card { background: #fffaf3; border: 1px solid #eadfce; border-radius: 12px; padding: 28px; }
+  .card h3 { margin: 0 0 8px; font-size: 20px; } .card p { margin: 0; color: #6b7280; }
+  .pricing { padding: 80px 0; }
+  .plan { background: #fff; border-radius: 12px; padding: 32px; border: 1px solid #eadfce; text-align: center; }
+  .plan .price { font-size: 40px; font-weight: 700; color: #7c3f12; }
+  .testimonials { padding: 80px 0; background: #7c3f12; color: #fff; }
+  .testimonials h2 { color: #fff; }
+  blockquote { margin: 0; background: rgba(255,255,255,.08); padding: 24px; border-radius: 12px; }
+  footer { padding: 40px 0; background: #1f2937; color: #d1d5db; font-size: 14px; }
+  footer .container { display: flex; justify-content: space-between; }
+  @media (max-width: 768px) {
+    nav.links, header .btn { display: none; }
+    .burger { display: inline-block; }
+    .hero { padding: 48px 0; }
+    .hero .container { flex-direction: column; }
+    .hero h1 { font-size: 36px; }
+    .hero .art { width: 100%; height: 220px; }
+    .grid { grid-template-columns: 1fr; }
+    footer .container { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<header><div class="container">
+  <a class="logo" href="/">Brewly</a>
+  <nav class="links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="/about">About</a><a href="/blog">Blog</a></nav>
+  <a class="btn" href="/signup">Start brewing</a>
+  <button class="burger" aria-label="Open menu">☰</button>
+</div></header>
+<main>
+<section class="hero"><div class="container">
+  <div class="text"><h1>Fresh coffee, roasted for you every week</h1>
+  <p>Small-batch beans from independent roasters, delivered to your door within 48 hours of roasting.</p>
+  <a class="btn" href="/signup">Get your first bag</a> <a class="btn ghost" href="#pricing">See plans</a></div>
+  <div class="art"></div>
+</div></section>
+<section class="features" id="features"><div class="container">
+  <h2>Why coffee lovers choose Brewly</h2>
+  <div class="grid">
+    <div class="card"><h3>Roasted to order</h3><p>Every bag is roasted after you order, never before.</p></div>
+    <div class="card"><h3>Pause anytime</h3><p>Skip a week or cancel in two clicks. No questions.</p></div>
+    <div class="card"><h3>Brew guides</h3><p>Step-by-step guides for pour-over, French press and espresso.</p></div>
+  </div>
+</div></section>
+<section class="pricing" id="pricing"><div class="container">
+  <h2>Simple pricing</h2>
+  <div class="grid">
+    <div class="plan"><h3>Solo</h3><div class="price">$14</div><p>1 bag / month</p><a class="btn" href="/signup">Choose Solo</a></div>
+    <div class="plan"><h3>Duo</h3><div class="price">$26</div><p>2 bags / month</p><a class="btn" href="/signup">Choose Duo</a></div>
+    <div class="plan"><h3>Office</h3><div class="price">$89</div><p>8 bags / month</p><a class="btn" href="/signup">Choose Office</a></div>
+  </div>
+</div></section>
+<section class="testimonials"><div class="container">
+  <h2>What our customers say</h2>
+  <div class="grid">
+    <blockquote>"The best beans I've had outside of Italy." — Maria</blockquote>
+    <blockquote>"I stopped buying supermarket coffee for good." — Tom</blockquote>
+    <blockquote>"Our office runs on Brewly." — Priya</blockquote>
+  </div>
+</div></section>
+</main>
+<footer><div class="container"><span>© 2026 Brewly Coffee Co.</span><span>hello@brewly.example · Instagram · Twitter</span></div></footer>
+</body>
+</html>
